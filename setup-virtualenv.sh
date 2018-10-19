@@ -11,11 +11,11 @@ ${VIRTUALENV_CMD} ${VIRTUALENV_DIR}
 
 source ${VIRTUALENV_DIR}/bin/activate
 
-pip install pip --upgrade
+python -m pip install pip --upgrade
 
 # install prerequisites of setup.py first
-pip install -r scripts/requirements.txt
+python -m pip install -r scripts/requirements.txt
 
 # install Sloika's dependencies
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 

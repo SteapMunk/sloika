@@ -49,7 +49,7 @@ cleanVirtualenv:
 .PHONY: cleanTmpEnv
 cleanTmpEnv:
 	source environment && rm -rf $${TMP_VIRTUALENV_DIR} && virtualenv -p python3 $${TMP_VIRTUALENV_DIR}
-	${inTmpEnv} pip install pip --upgrade
+	${inTmpEnv} python -m pip install pip --upgrade
 
 .PHONY: cleanTmpEnvWithDeps
 cleanTmpEnvWithDeps: cleanTmpEnv
