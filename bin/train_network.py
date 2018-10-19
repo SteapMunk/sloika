@@ -256,7 +256,7 @@ def load_network(args, log, all_chunks, training_stride):
 
 
 def load_training_data(args, log):
-    file_count = min(args.files_at_once, len(args.input))
+    file_count = min(args.input_load, len(args.input))
     input_files = np.random.choice(args.input, file_count, replace=False)
 
     all_chunks, all_labels, all_weights, all_bad = None, None, None, None
