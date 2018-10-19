@@ -74,8 +74,10 @@ def get_arguments():
     common_parser.add_argument('--version', nargs=0, action=display_version_and_exit, metavar=__version__,
                                help='Display version information.')
 
-    common_parser.add_argument('--input_load', default=5, metavar='chunks', type=Positive(int),
+    common_parser.add_argument('--input_load', default=5, type=Positive(int),
                                help='Number of input training data files to load at once')
+    common_parser.add_argument('--reload_after_batches', default=100, type=Positive(int),
+                               help='Reload training data after this many batches')
 
     # Positional arguments
     common_parser.add_argument('model', action=FileExists,
@@ -171,9 +173,11 @@ def main():
                       100.0 * acc_smoothed.value, dt, total_ev / 1000.0 / dt))
             total_ev = 0
             t0 = tn
-
+        if (i + 1) % args.reload_after_batches == 0:
             all_chunks, all_labels, all_weights, label_weights, min_chunk, max_chunk, data_chunk, \
-                training_stride, max_batch_size = load_training_data(args, log)
+                training_stride, max_batch_size = \
+                load_training_data(args, log, previous_stride=training_stride,
+                                   previous_min_chunk=min_chunk, previous_max_chunk=max_chunk)
 
     save_model(network, args.output)
 
@@ -188,43 +192,6 @@ def make_output_directory(args):
         sys.stderr.write('Error: Output location {} is not directory\n'.format(args.output))
         exit(1)
     copyfile(args.model, os.path.join(args.output, 'model.py'))
-
-
-def check_chunk_len_range(args, all_chunks, log):
-    data_chunk = all_chunks.shape[1]
-    if args.chunk_len_range[0] is None:
-        min_chunk = 2 * args.drop + 1
-    else:
-        min_chunk = int(np.around(args.chunk_len_range[0] * data_chunk))
-    if args.chunk_len_range[1] is None:
-        max_chunk = data_chunk
-    else:
-        max_chunk = int(np.around(args.chunk_len_range[1] * data_chunk))
-    log.write('* Will use min_chunk, max_chunk = {}, {}\n'.format(min_chunk, max_chunk))
-
-    assert max_chunk >= min_chunk, "Min chunk size (got {}) must be <= chunk size (got {})".format(min_chunk, max_chunk)
-    assert data_chunk >= max_chunk, "Max chunk size (got {}) must be <= data chunk size (got {})".format(
-        max_chunk, data_chunk)
-    assert data_chunk >= (
-        2 * args.drop + 1), "Data chunk size (got {}) must be > 2 * drop (got {})".format(data_chunk, args.drop)
-    assert min_chunk >= (
-        2 * args.drop + 1), "Min chunk size (got {}) must be > 2 * drop (got {})".format(min_chunk, args.drop)
-
-    return min_chunk, max_chunk, data_chunk
-
-
-def get_label_weights(args, all_labels, all_weights):
-    if args.ilf:
-        #  Calculate frequency of labels and convert into inverse frequency
-        label_weights = np.zeros(np.max(all_labels) + 1, dtype='f4')
-        for i, lbls in enumerate(all_labels):
-            label_weights += all_weights[i] * np.bincount(lbls, minlength=len(label_weights))
-        label_weights = np.reciprocal(label_weights)
-        label_weights /= np.mean(label_weights)
-    else:
-        # Default equally weighted
-        label_weights = np.ones(np.max(all_labels) + 1, dtype='f4')
-    return label_weights
 
 
 def load_network(args, log, all_chunks, training_stride):
@@ -255,7 +222,8 @@ def load_network(args, log, all_chunks, training_stride):
     return network
 
 
-def load_training_data(args, log):
+def load_training_data(args, log, previous_stride=None,
+                       previous_min_chunk=None, previous_max_chunk=None):
     file_count = min(args.input_load, len(args.input))
     input_files = np.random.choice(args.input, file_count, replace=False)
 
@@ -292,10 +260,15 @@ def load_training_data(args, log):
 
     #  Model stride is forced by training data
     training_stride = int(np.ceil(float(all_chunks.shape[1]) / all_labels.shape[1]))
-    log.write('* Stride is {}\n'.format(training_stride))
+    if previous_stride is None:
+        log.write('* Stride is {}\n'.format(training_stride))
+    else:
+        if training_stride != previous_stride:
+            sys.stderr.write('Error: inconsistent stride values in training data files')
+            exit(1)
 
-    min_chunk, max_chunk, data_chunk = check_chunk_len_range(args, all_chunks, log)
-
+    min_chunk, max_chunk, data_chunk = check_chunk_len_range(args, all_chunks, log,
+                                                             previous_min_chunk, previous_max_chunk)
     if not args.transducer:
         remove_blanks(all_labels)
     if args.bad:
@@ -305,6 +278,49 @@ def load_training_data(args, log):
 
     return (all_chunks, all_labels, all_weights, label_weights, min_chunk, max_chunk, data_chunk,
             training_stride, max_batch_size)
+
+
+def check_chunk_len_range(args, all_chunks, log, previous_min_chunk, previous_max_chunk):
+    data_chunk = all_chunks.shape[1]
+    if args.chunk_len_range[0] is None:
+        min_chunk = 2 * args.drop + 1
+    else:
+        min_chunk = int(np.around(args.chunk_len_range[0] * data_chunk))
+    if args.chunk_len_range[1] is None:
+        max_chunk = data_chunk
+    else:
+        max_chunk = int(np.around(args.chunk_len_range[1] * data_chunk))
+
+    if previous_min_chunk is None and previous_max_chunk is None:
+        log.write('* Will use min_chunk, max_chunk = {}, {}\n'.format(min_chunk, max_chunk))
+    else:
+        if min_chunk != previous_min_chunk or max_chunk != previous_max_chunk:
+            sys.stderr.write('Error: inconsistent chunk sizes in training data files')
+            exit(1)
+
+    assert max_chunk >= min_chunk, "Min chunk size (got {}) must be <= chunk size (got {})".format(min_chunk, max_chunk)
+    assert data_chunk >= max_chunk, "Max chunk size (got {}) must be <= data chunk size (got {})".format(
+        max_chunk, data_chunk)
+    assert data_chunk >= (
+        2 * args.drop + 1), "Data chunk size (got {}) must be > 2 * drop (got {})".format(data_chunk, args.drop)
+    assert min_chunk >= (
+        2 * args.drop + 1), "Min chunk size (got {}) must be > 2 * drop (got {})".format(min_chunk, args.drop)
+
+    return min_chunk, max_chunk, data_chunk
+
+
+def get_label_weights(args, all_labels, all_weights):
+    if args.ilf:
+        #  Calculate frequency of labels and convert into inverse frequency
+        label_weights = np.zeros(np.max(all_labels) + 1, dtype='f4')
+        for i, lbls in enumerate(all_labels):
+            label_weights += all_weights[i] * np.bincount(lbls, minlength=len(label_weights))
+        label_weights = np.reciprocal(label_weights)
+        label_weights /= np.mean(label_weights)
+    else:
+        # Default equally weighted
+        label_weights = np.ones(np.max(all_labels) + 1, dtype='f4')
+    return label_weights
 
 
 class ExponentialSmoother(object):
