@@ -33,6 +33,8 @@ def get_arguments():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     common_parser = argparse.ArgumentParser(add_help=False)
+
+    # Optional arguments
     common_parser.add_argument('--adam', nargs=3, metavar=('rate', 'decay1', 'decay2'),
                                default=(1e-3, 0.9, 0.999), type=(NonNegative(float), NonNegative(float),
                                                                  NonNegative(float)), action=ParseToNamedTuple,
@@ -72,11 +74,15 @@ def get_arguments():
                                help='Train a transducer based model')
     common_parser.add_argument('--version', nargs=0, action=display_version_and_exit, metavar=__version__,
                                help='Display version information.')
+
+    common_parser.add_argument('--input_load', default=5, metavar='chunks', type=Positive(int),
+                               help='Number of input training data files to load at once')
+
+    # Positional arguments
     common_parser.add_argument('model', action=FileExists,
                                help='File to read python model description from')
-
     common_parser.add_argument('output', help='Prefix for output files')
-    common_parser.add_argument('input', action=FileExists,
+    common_parser.add_argument('input', action=FileExists, nargs='+',
                                help='HDF5 file containing chunks')
 
     subparsers = parser.add_subparsers(help='command', dest='command')
@@ -226,7 +232,7 @@ def load_network(args, log, all_chunks, training_stride):
     log.write('* Reading network from {}\n'.format(args.model))
     model_ext = os.path.splitext(args.model)[1]
     if model_ext == '.py':
-        with h5py.File(args.input, 'r') as h5:
+        with h5py.File(args.input[0], 'r') as h5:
             klen = h5.attrs['kmer']
             try:
                 alphabet = h5.attrs['alphabet']
@@ -251,17 +257,35 @@ def load_network(args, log, all_chunks, training_stride):
 
 
 def load_training_data(args, log):
-    log.write('* Loading data from {}\n'.format(args.input))
-    with h5py.File(args.input, 'r') as h5:
-        all_chunks = h5['chunks'][:]
-        all_labels = h5['labels'][:]
-        all_bad = h5['bad'][:]
-        if args.reweight is not None:
-            all_weights = h5[args.reweight][:]
-        else:
-            all_weights = np.ones(len(all_chunks))
-    all_weights = all_weights.astype('float64')
-    all_weights /= np.sum(all_weights)
+    file_count = min(args.files_at_once, len(args.input))
+    input_files = np.random.choice(args.input, file_count, replace=False)
+
+    all_chunks, all_labels, all_weights, all_bad = None, None, None, None
+
+    for input_file in input_files:
+        log.write('* Loading data from {}\n'.format(input_file))
+        with h5py.File(input_file, 'r') as h5:
+            file_chunks = h5['chunks'][:]
+            file_labels = h5['labels'][:]
+            file_bad = h5['bad'][:]
+            if args.reweight is not None:
+                file_weights = h5[args.reweight][:]
+            else:
+                file_weights = np.ones(len(file_chunks))
+                file_weights = file_weights.astype('float64')
+        file_weights /= np.sum(file_weights)
+
+        if all_chunks is None:  # we've just loaded the first file loaded
+            all_chunks = file_chunks
+            all_labels = file_labels
+            all_weights = file_weights
+            all_bad = file_bad
+        else:  # this is not the first file loaded
+            all_chunks = np.concatenate((all_chunks, file_chunks))
+            all_labels = np.concatenate((all_labels, file_labels))
+            all_weights = np.concatenate((all_weights, file_weights))
+            all_bad = np.concatenate((all_bad, file_bad))
+
     max_batch_size = (all_weights > 0).sum()
 
     #  Model stride is forced by training data
