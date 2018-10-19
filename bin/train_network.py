@@ -273,7 +273,7 @@ def load_training_data(args, log):
             else:
                 file_weights = np.ones(chunk_count)
                 file_weights = file_weights.astype('float64')
-        log.write(': {} chunks\n'.format(chunk_count))
+        log.write(': {:,} chunks\n'.format(chunk_count))
 
         if all_chunks is None:  # we've just loaded the first file loaded
             all_chunks = file_chunks
@@ -286,7 +286,7 @@ def load_training_data(args, log):
             all_weights = np.concatenate((all_weights, file_weights))
             all_bad = np.concatenate((all_bad, file_bad))
 
-    log.write('Total training data: {} chunks\n'.format(len(all_chunks)))
+    log.write('* Total training data: {:,} chunks\n'.format(len(all_chunks)))
     all_weights /= np.sum(all_weights)
     max_batch_size = (all_weights > 0).sum()
 
