@@ -1,5 +1,20 @@
 Sloika is ONT research software for training RNN models for basecalling Oxford Nanopore reads. Sloika is built on top of Theano and is compatible with python 3.4+
 
+
+
+
+## Fork details
+
+I (Ryan) made this fork of Sloika to add the following features:
+* Multiple HDF5 training files can be provided, and Sloika will load a random subset at a time (configured by `--input_load`).
+* Sloika will reload a fresh selection of training data after every N batches (configured by `--reload_after_batches`)
+
+These help to get around Sloika's RAM requirements. Previously, the total amount of training data you could use was limited by your RAM (because Sloika loaded all training data into memory). Now it only loads a subset at a time, so there's no limit on the amount of training data you can use.
+
+
+
+
+
 ## Installation of system prerequisites
 
     sudo make deps
