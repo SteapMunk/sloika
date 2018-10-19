@@ -110,31 +110,9 @@ def main():
     log.write('* Command line\n')
     log.write(' '.join(sys.argv) + '\n')
 
-    log.write('* Loading data from {}\n'.format(args.input))
-    with h5py.File(args.input, 'r') as h5:
-        all_chunks = h5['chunks'][:]
-        all_labels = h5['labels'][:]
-        all_bad = h5['bad'][:]
-        if args.reweight is not None:
-            all_weights = h5[args.reweight][:]
-        else:
-            all_weights = np.ones(len(all_chunks))
-    all_weights = all_weights.astype('float64')
-    all_weights /= np.sum(all_weights)
-    max_batch_size = (all_weights > 0).sum()
+    all_chunks, all_labels, all_weights, label_weights, min_chunk, max_chunk, data_chunk, \
+        training_stride, max_batch_size = load_training_data(args, log)
 
-    #  Model stride is forced by training data
-    training_stride = int(np.ceil(float(all_chunks.shape[1]) / all_labels.shape[1]))
-    log.write('* Stride is {}\n'.format(training_stride))
-
-    min_chunk, max_chunk, data_chunk = check_chunk_len_range(args, all_chunks, log)
-
-    if not args.transducer:
-        remove_blanks(all_labels)
-    if args.bad:
-        all_labels[all_bad] = 0
-
-    label_weights = get_label_weights(args, all_labels, all_weights)
     network = load_network(args, log, all_chunks, training_stride)
     fg = wrap_network(args, network, min_prob=args.min_prob, l2=args.l2, drop=args.drop)
 
@@ -188,6 +166,9 @@ def main():
                       100.0 * acc_smoothed.value, dt, total_ev / 1000.0 / dt))
             total_ev = 0
             t0 = tn
+
+            all_chunks, all_labels, all_weights, label_weights, min_chunk, max_chunk, data_chunk, \
+                training_stride, max_batch_size = load_training_data(args, log)
 
     save_model(network, args.output)
 
@@ -267,6 +248,37 @@ def load_network(args, log, all_chunks, training_stride):
         log.write('* Model is neither python file nor model pickle\n')
         exit(1)
     return network
+
+
+def load_training_data(args, log):
+    log.write('* Loading data from {}\n'.format(args.input))
+    with h5py.File(args.input, 'r') as h5:
+        all_chunks = h5['chunks'][:]
+        all_labels = h5['labels'][:]
+        all_bad = h5['bad'][:]
+        if args.reweight is not None:
+            all_weights = h5[args.reweight][:]
+        else:
+            all_weights = np.ones(len(all_chunks))
+    all_weights = all_weights.astype('float64')
+    all_weights /= np.sum(all_weights)
+    max_batch_size = (all_weights > 0).sum()
+
+    #  Model stride is forced by training data
+    training_stride = int(np.ceil(float(all_chunks.shape[1]) / all_labels.shape[1]))
+    log.write('* Stride is {}\n'.format(training_stride))
+
+    min_chunk, max_chunk, data_chunk = check_chunk_len_range(args, all_chunks, log)
+
+    if not args.transducer:
+        remove_blanks(all_labels)
+    if args.bad:
+        all_labels[all_bad] = 0
+
+    label_weights = get_label_weights(args, all_labels, all_weights)
+
+    return (all_chunks, all_labels, all_weights, label_weights, min_chunk, max_chunk, data_chunk,
+            training_stride, max_batch_size)
 
 
 class ExponentialSmoother(object):
