@@ -14,9 +14,8 @@ import warnings
 import theano as th
 import theano.tensor as T
 
-from sloika.cmdargs import (AutoBool, display_version_and_exit,
-                               FileExists, Maybe, NonNegative, ParseToNamedTuple,
-                               Positive, proportion)
+from sloika.cmdargs import (AutoBool, display_version_and_exit, FileExists, FilesExist, Maybe,
+                            NonNegative, ParseToNamedTuple, Positive, proportion)
 
 import sloika.module_tools as smt
 from sloika import updates
@@ -82,7 +81,7 @@ def get_arguments():
     common_parser.add_argument('model', action=FileExists,
                                help='File to read python model description from')
     common_parser.add_argument('output', help='Prefix for output files')
-    common_parser.add_argument('input', action=FileExists, nargs='+',
+    common_parser.add_argument('input', action=FilesExist, nargs='+',
                                help='HDF5 file containing chunks')
 
     subparsers = parser.add_subparsers(help='command', dest='command')

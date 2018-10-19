@@ -48,6 +48,14 @@ class FileExists(argparse.Action):
             raise RuntimeError("File/path for '{}' does not exist, {}".format(self.dest, values))
         setattr(namespace, self.dest, values)
 
+class FilesExist(argparse.Action):
+    """Check if the input file exist."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        for v in values:
+            if not os.path.exists(v):
+                raise RuntimeError("File/path for '{}' does not exist, {}".format(self.dest, v))
+        setattr(namespace, self.dest, values)
 
 class FileExist(FileExists):
 
