@@ -262,17 +262,18 @@ def load_training_data(args, log):
     all_chunks, all_labels, all_weights, all_bad = None, None, None, None
 
     for input_file in input_files:
-        log.write('* Loading data from {}\n'.format(input_file))
+        log.write('* Loading data from {}'.format(input_file))
         with h5py.File(input_file, 'r') as h5:
             file_chunks = h5['chunks'][:]
             file_labels = h5['labels'][:]
             file_bad = h5['bad'][:]
+            chunk_count = len(file_chunks)
             if args.reweight is not None:
                 file_weights = h5[args.reweight][:]
             else:
-                file_weights = np.ones(len(file_chunks))
+                file_weights = np.ones(chunk_count)
                 file_weights = file_weights.astype('float64')
-        file_weights /= np.sum(file_weights)
+        log.write(': {} chunks\n'.format(chunk_count))
 
         if all_chunks is None:  # we've just loaded the first file loaded
             all_chunks = file_chunks
@@ -285,6 +286,8 @@ def load_training_data(args, log):
             all_weights = np.concatenate((all_weights, file_weights))
             all_bad = np.concatenate((all_bad, file_bad))
 
+    log.write('Total training data: {} chunks\n'.format(len(all_chunks)))
+    all_weights /= np.sum(all_weights)
     max_batch_size = (all_weights > 0).sum()
 
     #  Model stride is forced by training data
