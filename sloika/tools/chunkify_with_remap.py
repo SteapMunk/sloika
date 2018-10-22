@@ -44,6 +44,8 @@ def chunkify_with_remap_main(args):
     header_line = '\t'.join(['filename', 'nev', 'score', 'nstay', 'seqlen', 'start', 'end']) + u'\n'
     with open(args.output_strand_list, 'wt', buffering=0) as slfh:
         slfh.write(header_line)
+        slfh.flush()
+        os.fsync(slfh.fileno())
 
     for res in imap_mp(batch.chunk_remap_worker, fast5_files, threads=args.jobs,
                     fix_kwargs=kwargs, unordered=True, init=batch.init_chunk_remap_worker,
@@ -62,6 +64,8 @@ def chunkify_with_remap_main(args):
             data_line = '\t'.join([str(x) for x in strand_data]) + '\n'
             with open(args.output_strand_list, 'at', buffering=0) as slfh:
                 slfh.write(data_line)
+                slfh.flush()
+                os.fsync(slfh.fileno())
 
     if compiled_file != args.compile:
         os.remove(compiled_file)
