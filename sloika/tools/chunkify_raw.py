@@ -1,7 +1,6 @@
 from Bio import SeqIO
 import numpy as np
 import os
-import signal as pysig
 import sys
 
 from fast5_research import Fast5, iterate_fast5
@@ -297,62 +296,46 @@ def raw_remap(ref, signal, min_prob, kmer_len, prior, slip):
     return (score, mapping_table, path, seq)
 
 
-class TookTooLongException(Exception):
-    pass
-
-
-def timeout_handler(signum, frame):
-   raise TookTooLongException('took too long')
-
-
 def raw_chunk_remap_worker(fn, trim, min_prob, kmer_len, min_length,
                            prior, slip, chunk_len, normalisation, downsample_factor,
                            interpolation, open_pore_fraction, references):
     """ Worker function for `chunkify raw_remap` remapping reads using raw signal"""
-
-    # Allow 10 minutes for remap/chunkify to complete, otherwise give up.
-    pysig.signal(pysig.SIGALRM, timeout_handler)
-    pysig.alarm(600)
     try:
-        try:
-            with Fast5(fn) as f5:
-                signal = f5.get_read(raw=True)
-                sn = f5.filename_short
-        except Exception as e:
-            sys.stderr.write('Failure reading events from {}.\n{}\n'.format(fn, repr(e)))
-            return None
-
-        try:
-            read_ref = references[sn]
-        except Exception as e:
-            sys.stderr.write('No reference found for {}.\n{}\n'.format(fn, repr(e)))
-            return None
-
-        signal = batch.trim_open_pore(signal, open_pore_fraction)
-        signal = util.trim_array(signal, *trim)
-
-        if len(signal) < max(chunk_len, min_length):
-            sys.stderr.write('{} is too short.\n'.format(fn))
-            return None
-
-        try:
-            (score, mapping_table, path, seq) = raw_remap(read_ref, signal, min_prob, kmer_len, prior, slip)
-        except Exception as e:
-            sys.stderr.write("Failure remapping read {}.\n{}\n".format(sn, repr(e)))
-            return None
-        # mapping_attrs required if using interpolation
-        mapping_attrs = {
-            'reference': read_ref,
-            'direction': '+',
-            'ref_start': 0,
-        }
-        (chunks, labels, bad_ev) = raw_chunkify(signal, mapping_table, chunk_len, kmer_len, normalisation,
-                                                downsample_factor, interpolation, mapping_attrs)
-
-        return sn + '.fast5', score, len(mapping_table), path, seq, chunks, labels, bad_ev
-
-    except TookTooLongException:
+        with Fast5(fn) as f5:
+            signal = f5.get_read(raw=True)
+            sn = f5.filename_short
+    except Exception as e:
+        sys.stderr.write('Failure reading events from {}.\n{}\n'.format(fn, repr(e)))
         return None
+
+    try:
+        read_ref = references[sn]
+    except Exception as e:
+        sys.stderr.write('No reference found for {}.\n{}\n'.format(fn, repr(e)))
+        return None
+
+    signal = batch.trim_open_pore(signal, open_pore_fraction)
+    signal = util.trim_array(signal, *trim)
+
+    if len(signal) < max(chunk_len, min_length):
+        sys.stderr.write('{} is too short.\n'.format(fn))
+        return None
+
+    try:
+        (score, mapping_table, path, seq) = raw_remap(read_ref, signal, min_prob, kmer_len, prior, slip)
+    except Exception as e:
+        sys.stderr.write("Failure remapping read {}.\n{}\n".format(sn, repr(e)))
+        return None
+    # mapping_attrs required if using interpolation
+    mapping_attrs = {
+        'reference': read_ref,
+        'direction': '+',
+        'ref_start': 0,
+    }
+    (chunks, labels, bad_ev) = raw_chunkify(signal, mapping_table, chunk_len, kmer_len, normalisation,
+                                            downsample_factor, interpolation, mapping_attrs)
+
+    return sn + '.fast5', score, len(mapping_table), path, seq, chunks, labels, bad_ev
 
 
 def raw_chunkify_with_identity_main(args):
