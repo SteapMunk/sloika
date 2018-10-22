@@ -161,42 +161,49 @@ def remap(read_ref, ev, min_prob, kmer_len, prior, slip):
     return (score, ev, path, seq)
 
 
+class TookTooLongException(Exception):
+    pass
+
+
 def timeout_handler(signum, frame):
-   raise Exception('took too long')
+   raise TookTooLongException('took too long')
 
 
 def chunk_remap_worker(fn, trim, min_prob, kmer_len, prior, slip, chunk_len, use_scaled,
                        normalisation, min_length, section, segmentation, references):
-    try:
-        with Fast5(fn) as f5:
-            sn = f5.filename_short
-            try:
-                ev = f5.get_section_events(section, analysis=segmentation)
-            except ValueError:
-                ev = f5.get_basecall_data(section)
-    except Exception as e:
-        sys.stderr.write('Failure reading events from {}.\n{}\n'.format(fn, repr(e)))
-        return None
-
-    try:
-        read_ref = references[sn]
-    except Exception as e:
-        sys.stderr.write('No reference found for {}.\n{}\n'.format(fn, repr(e)))
-        return None
-
-    ev = trim_ends_and_filter(ev, trim, min_length, chunk_len)
-    if ev is None:
-        sys.stderr.write('{} is too short.\n'.format(fn))
-        return None
 
     # Allow 10 minutes for remap/chunkify to complete, otherwise give up.
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(600)
     try:
+        try:
+            with Fast5(fn) as f5:
+                sn = f5.filename_short
+                try:
+                    ev = f5.get_section_events(section, analysis=segmentation)
+                except ValueError:
+                    ev = f5.get_basecall_data(section)
+        except Exception as e:
+            sys.stderr.write('Failure reading events from {}.\n{}\n'.format(fn, repr(e)))
+            return None
+
+        try:
+            read_ref = references[sn]
+        except Exception as e:
+            sys.stderr.write('No reference found for {}.\n{}\n'.format(fn, repr(e)))
+            return None
+
+        ev = trim_ends_and_filter(ev, trim, min_length, chunk_len)
+        if ev is None:
+            sys.stderr.write('{} is too short.\n'.format(fn))
+            return None
+
         (score, ev, path, seq) = remap(read_ref, ev, min_prob, kmer_len, prior, slip)
         (chunks, labels, bad_ev) = chunkify(ev, chunk_len, kmer_len, use_scaled, normalisation)
+        signal.alarm(0)
         return sn + '.fast5', score, len(ev), path, seq, chunks, labels, bad_ev
-    except Exception:
+
+    except TookTooLongException:
         return None
 
 

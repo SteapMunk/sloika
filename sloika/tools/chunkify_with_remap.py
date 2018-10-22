@@ -37,12 +37,14 @@ def chunkify_with_remap_main(args):
 
     i = 0
     compiled_file = helpers.compile_model(args.model, args.compile)
-    output_strand_list_entries = []
     bad_list = []
     chunk_list = []
     label_list = []
-    with open(args.output_strand_list, 'w') as slfh:
-        slfh.write(u'\t'.join(['filename', 'nev', 'score', 'nstay', 'seqlen', 'start', 'end']) + u'\n')
+
+    # Write the file as binary so we can write it unbuffered.
+    with open(args.output_strand_list, 'wb', buffering=0) as slfh:
+        header_line = '\t'.join(['filename', 'nev', 'score', 'nstay', 'seqlen', 'start', 'end']) + u'\n'
+        slfh.write(header_line.encode('utf-8'))
         for res in imap_mp(batch.chunk_remap_worker, fast5_files, threads=args.jobs,
                         fix_kwargs=kwargs, unordered=True, init=batch.init_chunk_remap_worker,
                         initargs=[compiled_file, args.kmer_len, args.alphabet]):
@@ -56,7 +58,8 @@ def chunkify_with_remap_main(args):
                 bad_list.append(bad_ev)
                 strand_data = [read, nev, -score / nev, np.sum(np.ediff1d(path, to_begin=1) == 0),
                                len(seq), min(path), max(path)]
-                slfh.write('\t'.join([str(x) for x in strand_data]) + '\n')
+                data_line = '\t'.join([str(x) for x in strand_data]) + '\n'
+                slfh.write(data_line.encode('utf-8'))
 
     if compiled_file != args.compile:
         os.remove(compiled_file)
