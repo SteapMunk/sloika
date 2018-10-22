@@ -1,6 +1,7 @@
 from Bio import SeqIO
 import numpy as np
 import os
+import signal as pysig
 import sys
 
 from fast5_research import Fast5, iterate_fast5
@@ -296,46 +297,62 @@ def raw_remap(ref, signal, min_prob, kmer_len, prior, slip):
     return (score, mapping_table, path, seq)
 
 
+class TookTooLongException(Exception):
+    pass
+
+
+def timeout_handler(signum, frame):
+   raise TookTooLongException('took too long')
+
+
 def raw_chunk_remap_worker(fn, trim, min_prob, kmer_len, min_length,
                            prior, slip, chunk_len, normalisation, downsample_factor,
                            interpolation, open_pore_fraction, references):
     """ Worker function for `chunkify raw_remap` remapping reads using raw signal"""
+
+    # Allow 10 minutes for remap/chunkify to complete, otherwise give up.
+    pysig.signal(pysig.SIGALRM, timeout_handler)
+    pysig.alarm(600)
     try:
-        with Fast5(fn) as f5:
-            signal = f5.get_read(raw=True)
-            sn = f5.filename_short
-    except Exception as e:
-        sys.stderr.write('Failure reading events from {}.\n{}\n'.format(fn, repr(e)))
+        try:
+            with Fast5(fn) as f5:
+                signal = f5.get_read(raw=True)
+                sn = f5.filename_short
+        except Exception as e:
+            sys.stderr.write('Failure reading events from {}.\n{}\n'.format(fn, repr(e)))
+            return None
+
+        try:
+            read_ref = references[sn]
+        except Exception as e:
+            sys.stderr.write('No reference found for {}.\n{}\n'.format(fn, repr(e)))
+            return None
+
+        signal = batch.trim_open_pore(signal, open_pore_fraction)
+        signal = util.trim_array(signal, *trim)
+
+        if len(signal) < max(chunk_len, min_length):
+            sys.stderr.write('{} is too short.\n'.format(fn))
+            return None
+
+        try:
+            (score, mapping_table, path, seq) = raw_remap(read_ref, signal, min_prob, kmer_len, prior, slip)
+        except Exception as e:
+            sys.stderr.write("Failure remapping read {}.\n{}\n".format(sn, repr(e)))
+            return None
+        # mapping_attrs required if using interpolation
+        mapping_attrs = {
+            'reference': read_ref,
+            'direction': '+',
+            'ref_start': 0,
+        }
+        (chunks, labels, bad_ev) = raw_chunkify(signal, mapping_table, chunk_len, kmer_len, normalisation,
+                                                downsample_factor, interpolation, mapping_attrs)
+
+        return sn + '.fast5', score, len(mapping_table), path, seq, chunks, labels, bad_ev
+
+    except TookTooLongException:
         return None
-
-    try:
-        read_ref = references[sn]
-    except Exception as e:
-        sys.stderr.write('No reference found for {}.\n{}\n'.format(fn, repr(e)))
-        return None
-
-    signal = batch.trim_open_pore(signal, open_pore_fraction)
-    signal = util.trim_array(signal, *trim)
-
-    if len(signal) < max(chunk_len, min_length):
-        sys.stderr.write('{} is too short.\n'.format(fn))
-        return None
-
-    try:
-        (score, mapping_table, path, seq) = raw_remap(read_ref, signal, min_prob, kmer_len, prior, slip)
-    except Exception as e:
-        sys.stderr.write("Failure remapping read {}.\n{}\n".format(sn, repr(e)))
-        return None
-    # mapping_attrs required if using interpolation
-    mapping_attrs = {
-        'reference': read_ref,
-        'direction': '+',
-        'ref_start': 0,
-    }
-    (chunks, labels, bad_ev) = raw_chunkify(signal, mapping_table, chunk_len, kmer_len, normalisation,
-                                            downsample_factor, interpolation, mapping_attrs)
-
-    return sn + '.fast5', score, len(mapping_table), path, seq, chunks, labels, bad_ev
 
 
 def raw_chunkify_with_identity_main(args):
@@ -419,23 +436,29 @@ def raw_chunkify_with_remap_main(args):
     bad_list = []
     chunk_list = []
     label_list = []
-    with open(args.output_strand_list, 'w') as slfh:
-        slfh.write(u'\t'.join(['filename', 'nblocks', 'score', 'nstay', 'seqlen', 'start', 'end']) + u'\n')
-        for res in imap_mp(raw_chunk_remap_worker, fast5_files, threads=args.jobs,
-                        fix_kwargs=kwargs, unordered=True, init=batch.init_chunk_remap_worker,
-                        initargs=[compiled_file, args.kmer_len, args.alphabet]):
-            if res is not None:
-                i = util.progress_report(i)
 
-                read, score, nblocks, path, seq, chunks, labels, bad_ev = res
+    header_line = '\t'.join(['filename', 'nblocks', 'score', 'nstay', 'seqlen', 'start', 'end']) + '\n'
+    with open(args.output_strand_list, 'wt') as slfh:
+        slfh.write(header_line)
 
-                chunk_list.append(chunks)
-                label_list.append(labels)
-                bad_list.append(bad_ev)
-                strand_data = [read, nblocks, -score / nblocks,
-                               np.sum(np.ediff1d(path, to_begin=1) == 0),
-                               len(seq), min(path), max(path)]
-                slfh.write('\t'.join([str(x) for x in strand_data]) + '\n')
+    for res in imap_mp(raw_chunk_remap_worker, fast5_files, threads=args.jobs,
+                    fix_kwargs=kwargs, unordered=True, init=batch.init_chunk_remap_worker,
+                    initargs=[compiled_file, args.kmer_len, args.alphabet]):
+        if res is not None:
+            i = util.progress_report(i)
+
+            read, score, nblocks, path, seq, chunks, labels, bad_ev = res
+
+            chunk_list.append(chunks)
+            label_list.append(labels)
+            bad_list.append(bad_ev)
+            strand_data = [read, nblocks, -score / nblocks,
+                           np.sum(np.ediff1d(path, to_begin=1) == 0),
+                           len(seq), min(path), max(path)]
+
+            data_line = '\t'.join([str(x) for x in strand_data]) + '\n'
+            with open(args.output_strand_list, 'at', buffering=0) as slfh:
+                slfh.write(data_line)
 
     if compiled_file != args.compile:
         os.remove(compiled_file)
