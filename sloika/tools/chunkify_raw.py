@@ -457,7 +457,7 @@ def raw_chunkify_with_remap_main(args):
                            len(seq), min(path), max(path)]
 
             data_line = '\t'.join([str(x) for x in strand_data]) + '\n'
-            with open(args.output_strand_list, 'at', buffering=0) as slfh:
+            with open(args.output_strand_list, 'at') as slfh:
                 slfh.write(data_line)
 
     if compiled_file != args.compile:
