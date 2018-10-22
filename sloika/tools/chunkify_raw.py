@@ -415,14 +415,14 @@ def raw_chunkify_with_remap_main(args):
 
     i = 0
     compiled_file = helpers.compile_model(args.model, args.compile)
-    output_strand_list_entries = []
     bad_list = []
     chunk_list = []
     label_list = []
 
-    header_line = '\t'.join(['filename', 'nblocks', 'score', 'nstay', 'seqlen', 'start', 'end']) + '\n'
-    with open(args.output_strand_list, 'wt') as slfh:
-        slfh.write(header_line)
+    if not os.path.isfile(args.output_strand_list):
+        header_line = '\t'.join(['filename', 'nblocks', 'score', 'nstay', 'seqlen', 'start', 'end']) + '\n'
+        with open(args.output_strand_list, 'wt') as slfh:
+            slfh.write(header_line)
 
     for res in imap_mp(raw_chunk_remap_worker, fast5_files, threads=args.jobs,
                     fix_kwargs=kwargs, unordered=True, init=batch.init_chunk_remap_worker,
