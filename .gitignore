@@ -11,3 +11,5 @@ run
 .cache
 .pytest_cache
 .tox
+.DS_Store
+.idea
