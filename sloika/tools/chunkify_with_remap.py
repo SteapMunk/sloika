@@ -60,6 +60,8 @@ def chunkify_with_remap_main(args):
                                len(seq), min(path), max(path)]
                 data_line = '\t'.join([str(x) for x in strand_data]) + '\n'
                 slfh.write(data_line.encode('utf-8'))
+                slfh.flush()
+                os.fsync(slfh.fileno())
 
     if compiled_file != args.compile:
         os.remove(compiled_file)
