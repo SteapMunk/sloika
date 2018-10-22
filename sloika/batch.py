@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import numpy.lib.recfunctions as nprf
+import signal
 import sys
 
 from Bio import SeqIO
@@ -160,6 +161,10 @@ def remap(read_ref, ev, min_prob, kmer_len, prior, slip):
     return (score, ev, path, seq)
 
 
+def timeout_handler(signum, frame):
+   raise Exception('took too long')
+
+
 def chunk_remap_worker(fn, trim, min_prob, kmer_len, prior, slip, chunk_len, use_scaled,
                        normalisation, min_length, section, segmentation, references):
     try:
@@ -184,10 +189,15 @@ def chunk_remap_worker(fn, trim, min_prob, kmer_len, prior, slip, chunk_len, use
         sys.stderr.write('{} is too short.\n'.format(fn))
         return None
 
-    (score, ev, path, seq) = remap(read_ref, ev, min_prob, kmer_len, prior, slip)
-    (chunks, labels, bad_ev) = chunkify(ev, chunk_len, kmer_len, use_scaled, normalisation)
-
-    return sn + '.fast5', score, len(ev), path, seq, chunks, labels, bad_ev
+    # Allow 10 minutes for remap/chunkify to complete, otherwise give up.
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(600)
+    try:
+        (score, ev, path, seq) = remap(read_ref, ev, min_prob, kmer_len, prior, slip)
+        (chunks, labels, bad_ev) = chunkify(ev, chunk_len, kmer_len, use_scaled, normalisation)
+        return sn + '.fast5', score, len(ev), path, seq, chunks, labels, bad_ev
+    except Exception:
+        return None
 
 
 # TODO: this is a hack, find a nicer way
