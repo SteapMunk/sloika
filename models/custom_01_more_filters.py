@@ -14,7 +14,7 @@ def network(klen, sd, nbase=smt.DEFAULT_NBASE, nfeature=1, winlen=11, stride=5):
     :returns: a `class`:layer.Layer:
     """
 
-    n = 256
+    n = 192
     fun = smt.tanh
     init = smt.partial(smt.truncated_normal, sd=sd)
 

@@ -24,13 +24,13 @@ def network(klen, sd, nbase=smt.DEFAULT_NBASE, nfeature=1, winlen=11, stride=5):
 
                        smt.Gru(n, n, init=init, has_bias=True, fun=fun),
 
-                       smt.Convolution(nfeature, n, 3, 1, init=init, has_bias=True, fun=smt.elu),
+                       smt.Convolution(n, n, 3, 1, init=init, has_bias=True, fun=smt.elu),
 
                        smt.Reverse(smt.Gru(n, n, init=init, has_bias=True, fun=fun)),
 
                        smt.Gru(n, n, init=init, has_bias=True, fun=fun),
 
-                       smt.Convolution(nfeature, n, 3, 1, init=init, has_bias=True, fun=smt.elu),
+                       smt.Convolution(n, n, 3, 1, init=init, has_bias=True, fun=smt.elu),
 
                        smt.Reverse(smt.Gru(n, n, init=init, has_bias=True, fun=fun)),
 
