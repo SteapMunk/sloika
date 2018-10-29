@@ -61,7 +61,7 @@ def get_arguments():
                                help="Don't print progress information to stdout")
     common_parser.add_argument('--reweight', metavar='group', default='weights', type=Maybe(str),
                                help="Select chunk according to weights in 'group'")
-    common_parser.add_argument('--save_every', metavar='x', type=Positive(int), default=5000,
+    common_parser.add_argument('--save_every', metavar='x', type=Positive(int), default=500,
                                help='Save model every x batches')
     common_parser.add_argument('--sd', default=0.5, metavar='value', type=Positive(float),
                                help='Standard deviation to initialise with')
@@ -74,9 +74,9 @@ def get_arguments():
     common_parser.add_argument('--version', nargs=0, action=display_version_and_exit, metavar=__version__,
                                help='Display version information.')
 
-    common_parser.add_argument('--input_load', default=5, type=Positive(int),
+    common_parser.add_argument('--input_load', default=10, type=Positive(int),
                                help='Number of input training data files to load at once')
-    common_parser.add_argument('--reload_after_batches', default=100, type=Positive(int),
+    common_parser.add_argument('--reload_after_batches', default=250, type=Positive(int),
                                help='Reload training data after this many batches')
 
     # Positional arguments
