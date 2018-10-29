@@ -6,10 +6,15 @@ Sloika is ONT research software for training RNN models for basecalling Oxford N
 ## Fork details
 
 I (Ryan) made this fork of Sloika to add the following features:
-* Multiple HDF5 training files can be provided, and Sloika will load a random subset at a time (configured by `--input_load`).
-* Sloika will reload a fresh selection of training data after every N batches (configured by `--reload_after_batches`)
 
-These help to get around Sloika's RAM requirements. Previously, the total amount of training data you could use was limited by your RAM (because Sloika loaded all training data into memory). Now it only loads a subset at a time, so there's no limit on the amount of training data you can use.
+* Reduce RAM requirements with large training sets:
+  * Multiple HDF5 training files can be provided, and Sloika will load a random subset at a time (configured by `--input_load`).
+  * Sloika will reload a fresh selection of training data after every N batches (configured by `--reload_after_batches`)
+  * Previously, the total amount of training data you could use was limited by your RAM (because Sloika loaded all training data into memory). Now it only loads a subset at a time, so there's no limit on the amount of training data you can use.
+* Don't start decaying the learning rate until the accuracy has exceeded 70%. This is to handle the fact that the training seems to fumble around for a while before having any success. I wanted to keep the learning rate high during this period.
+* Added some custom models that build upon the successful rgrgr model.
+
+
 
 
 

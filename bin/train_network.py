@@ -132,8 +132,11 @@ def main():
 
     t0 = time.time()
     log.write('* Training\n')
+
+    decay_start = None
+
     for i in range(args.niteration):
-        learning_rate = args.adam.rate / (1.0 + i / args.lrdecay)
+        learning_rate = get_learning_rate(args, i, decay_start)
 
         chunk_len = np.random.randint(min_chunk, max_chunk + 1)
         chunk_len = chunk_len - (chunk_len % training_stride)
@@ -168,16 +171,20 @@ def main():
         if (i + 1) % 50 == 0:
             tn = time.time()
             dt = tn - t0
-            t = ' {:5d} {:5.3f}  {:5.2f}%  {:5.2f}s ({:.2f} kev/s)\n'
+            t = ' {:5d}: score={:5.3f}, acc={:5.2f}%, time={:5.2f}s ({:.2f} kev/s), lr={}\n'
             log.write(t.format((i + 1) // 50, score_smoothed.value,
-                      100.0 * acc_smoothed.value, dt, total_ev / 1000.0 / dt))
+                      100.0 * acc_smoothed.value, dt, total_ev / 1000.0 / dt, learning_rate))
             total_ev = 0
             t0 = tn
+
         if (i + 1) % args.reload_after_batches == 0:
             all_chunks, all_labels, all_weights, label_weights, min_chunk, max_chunk, data_chunk, \
                 training_stride, max_batch_size = \
                 load_training_data(args, log, previous_stride=training_stride,
                                    previous_min_chunk=min_chunk, previous_max_chunk=max_chunk)
+
+        if decay_start is None and acc_smoothed.value > 0.7:
+            decay_start = i
 
     save_model(network, args.output)
 
@@ -376,6 +383,17 @@ def save_model(network, output, index=None):
 
     with open(os.path.join(output, model_file), 'wb') as fh:
         pickle.dump(network, fh, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def get_learning_rate(args, i, decay_start):
+    """
+    Learning rate decays each iteration, but only after decay_start is set (happens when the
+    accuracy passes a threshold).
+    """
+    if decay_start is None:
+        return args.adam.rate
+    else:
+        return args.adam.rate / (1.0 + (i - decay_start) / args.lrdecay)
 
 
 class Logger(object):
