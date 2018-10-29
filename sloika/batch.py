@@ -186,6 +186,7 @@ def chunk_remap_worker(fn, trim, min_prob, kmer_len, prior, slip, chunk_len, use
 
     (score, ev, path, seq) = remap(read_ref, ev, min_prob, kmer_len, prior, slip)
     (chunks, labels, bad_ev) = chunkify(ev, chunk_len, kmer_len, use_scaled, normalisation)
+
     return sn + '.fast5', score, len(ev), path, seq, chunks, labels, bad_ev
 
 

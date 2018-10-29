@@ -13,6 +13,9 @@ I (Ryan) made this fork of Sloika to add the following features:
   * Previously, the total amount of training data you could use was limited by your RAM (because Sloika loaded all training data into memory). Now it only loads a subset at a time, so there's no limit on the amount of training data you can use.
 * Don't start decaying the learning rate until the accuracy has exceeded 70%. This is to handle the fact that the training seems to fumble around for a while before having any success. I wanted to keep the learning rate high during this period.
 * Added some custom models that build upon the successful rgrgr model.
+* Changed the chunkify command to write strands to file as it goes:
+  * Helps when chunkify processes hang or run out of memory – you can still have the results up to that point.
+  * Also allows multiple chunkify processes to write to the same strands file, making parallelisation easier.
 
 
 
