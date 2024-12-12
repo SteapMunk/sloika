@@ -56,7 +56,7 @@ compatible with python 3.4 or above.""",
     ],
 
     packages=find_packages(exclude=["*.test", "*.test.*", "test.*", "test", "bin"]),
-    package_data={'configs': 'data/configs/*'},
+    package_data={'configs': ['data/configs/*']},
     exclude_package_data={'': ['*.hdf', '*.c', '*.h']},
     ext_modules=cythonize(os.path.join(package_dir, "viterbi_helpers.pyx")),
     include_dirs=[np.get_include()],

@@ -4,8 +4,8 @@ cimport cython
 
 DTYPE = np.float32
 ctypedef np.float32_t DTYPE_t
-ITYPE = np.int
-ctypedef np.int_t ITYPE_t
+ITYPE = np.int64
+ctypedef np.int64_t ITYPE_t
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
