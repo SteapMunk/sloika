@@ -1,9 +1,11 @@
 Sloika is ONT research software for training RNN models for basecalling Oxford Nanopore reads. Sloika is built on top of Theano and is compatible with python 3.4+
 
+## New Fork details
+
+We (Arden and Sam) have made this fork for the purposes of recreating the research from the paper associated with the old fork.
 
 
-
-## Fork details
+## Old Fork details
 
 I (Ryan) made this fork of Sloika to add the following features:
 
@@ -31,7 +33,7 @@ This will install required system packages on Debian-based Linux distros.
 
 ## Setting up clean development environment
 
-    make cleanDevEnv
+    sudo make cleanDevEnv
     source build/env/bin/activate
 
 This will create and activate a python virtual environment in `build/env`.

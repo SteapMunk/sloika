@@ -122,7 +122,7 @@ def readtsv(fname, fields=None, **kwargs):
 
     for k in ['names', 'delimiter', 'dtype']:
         kwargs.pop(k, None)
-    table = np.genfromtxt(fname, names=True, delimiter='\t', dtype=None, **kwargs)
+    table = np.genfromtxt(fname, names=True, delimiter='\t', dtype=None, **kwargs, encoding=None)
     #  Numpy tricks to force single element to be array of one row
     return table.reshape(-1)
 

@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 
-from fast5_research import Fast5
+from ont_fast5_api.fast5_interface import get_fast5_file
 from sloika import bio
 from sloika.maths import mad
 
@@ -67,7 +67,7 @@ def events_worker(fast5_file_name, section, segmentation, trim, kmer_len, transd
     """
     from sloika import features
     try:
-        with Fast5(fast5_file_name) as f5:
+        with get_fast5_file(fast5_file_name, mode="r") as f5:
             ev = f5.get_section_events(section, analysis=segmentation)
             sn = f5.filename_short
     except Exception as e:
@@ -101,7 +101,7 @@ def raw_worker(fast5_file_name, trim, open_pore_fraction, kmer_len, transducer, 
     """
     from sloika import batch, config
     try:
-        with Fast5(fast5_file_name) as f5:
+        with get_fast5_file(fast5_file_name) as f5:
             signal = f5.get_read(raw=True)
             sn = f5.filename_short
     except Exception as e:

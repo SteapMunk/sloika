@@ -3,7 +3,7 @@
 source environment
 
 VIRTUALENV_DIR="${DEV_VIRTUALENV_DIR}"
-VIRTUALENV_CMD="virtualenv -p python3"
+VIRTUALENV_CMD="virtualenv -p python3.9"
 
 # for fromscratch builds plow through ${VIRTUALENV_DIR} before running this script
 mkdir -p ${VIRTUALENV_DIR}

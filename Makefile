@@ -13,7 +13,7 @@ deps:
 	apt-get update
 	apt-get install -y \
 	    python3-virtualenv python3-pip python3-setuptools  git \
-	    libblas3 libblas-dev python3-dev lsb-release virtualenv
+	    libblas3 libblas-dev python3.9-dev lsb-release virtualenv
 
 .PHONY: workflow
 workflow:

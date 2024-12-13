@@ -1,5 +1,7 @@
-h5py >= 3.12.1
-numpy >= 1.26.0
-Theano == 1.0.5
-biopython >= 1.81
-fast5_research >= 1.2.2
+h5py >=2.9
+numpy >= 1.19
+Theano == 0.8.2
+biopython >= 1.61
+progressbar33 >= 2.3.1
+six >= 1.10
+ont-fast5-api

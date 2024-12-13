@@ -1,2 +1,2 @@
-nose-parameterized == 0.6.0
-pytest-xdist == 3.3.1
+parameterized
+pytest-xdist

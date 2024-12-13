@@ -15,7 +15,7 @@ class ViterbiTest(unittest.TestCase):
         x = np.random.normal(size=self.n).astype(np.float32)
         y1s, y1i = viterbi_helpers.slip_update(x, self.slip)
         y2s = np.zeros(len(x), dtype=np.float32)
-        y2i = np.zeros(len(x), dtype=np.int)
+        y2i = np.zeros(len(x), dtype=np.int32)
 
         y2s[0] = y2s[1] = -1e38
         y2s[2] = x[0] - self.slip

@@ -5,7 +5,7 @@ import sys
 
 from Bio import SeqIO
 
-from fast5_research import Fast5
+from ont_fast5_api.fast5_interface import get_fast5_file
 from sloika import bio, maths
 
 # NB: qualified imports here due to a name clash
@@ -110,7 +110,7 @@ def chunk_worker(fn, section, chunk_len, kmer_len, min_length, trim, use_scaled,
     import sloika.features
 
     try:
-        with Fast5(fn) as f5:
+        with get_fast5_file(fn) as f5:
             ev, _ = f5.get_any_mapping_data(section)
     except Exception as e:
         sys.stderr.write('Failed to get mapping data from {}.\n{}\n'.format(fn, repr(e)))
@@ -163,7 +163,7 @@ def remap(read_ref, ev, min_prob, kmer_len, prior, slip):
 def chunk_remap_worker(fn, trim, min_prob, kmer_len, prior, slip, chunk_len, use_scaled,
                        normalisation, min_length, section, segmentation, references):
     try:
-        with Fast5(fn) as f5:
+        with get_fast5_file(fn) as f5:
             sn = f5.filename_short
             try:
                 ev = f5.get_section_events(section, analysis=segmentation)
